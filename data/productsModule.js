@@ -165,7 +165,7 @@ function getUUIDs(eachItem) {
     .whereIn("identifier", eachItem);
 }
 
-function getDetail(uuid, userId) {
+function getDetail(uuid, userId, pageQuery) {
   return db("products")
     .select(
       "identifier",
@@ -188,7 +188,13 @@ function getDetail(uuid, userId) {
     .first()
     .then(foundProduct => {
       return db("shipments")
+        .count({ count: '*' })
+        .where("productUuids", "like", `%${uuid}%`)
+        .andWhere({ userId })
+    .then(count => {
+      return db("shipments")
         .select(
+          "lastUpdated",
           "dateShipped",
           "shippedTo",
           "dateArrived",
@@ -198,12 +204,19 @@ function getDetail(uuid, userId) {
         )
         .where("productUuids", "like", `%${uuid}%`)
         .andWhere({ userId })
+        .orderBy("lastUpdated", "desc")
+        .limit(3)
+    .offset((pageQuery - 1) * 3)
         .then(foundShipments => {
           foundProduct.shipments = foundShipments;
+          foundProduct.shipmentsCount = count[0].count;
           return foundProduct;
         });
     })
     .catch(() => {
       return null;
     });
+}).catch(() => {
+  return null;
+})
 }

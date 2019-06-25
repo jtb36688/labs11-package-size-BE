@@ -1,13 +1,26 @@
 const router = require("express").Router();
 const db = require("../data/shipmentsModule.js");
 const { authenticate } = require("../api/globalMW.js");
-const { uspsTracking } = require("./shipmentsMW.js");
+const { uspsTracking, trackOne, testingShipit } = require("./shipmentsMW.js");
 
 router.post("/add/:uuid", authenticate, uspsTracking, (req, res) => {
-  const { uuid } = req.params
+  const { uuid } = req.params;
   const trackingdata = req.trackingObject;
   const userId = req.decoded.subject;
   db.addShipment(trackingdata, uuid.toLowerCase(), userId)
+    .then(added => {
+      res.status(201).json(added);
+    })
+    .catch(({ code, message }) => {
+      res.status(code).json({ message });
+    });
+});
+
+router.post("/addweb/:uuid", authenticate, uspsTracking, (req, res) => {
+  const { uuid } = req.params;
+  const trackingdata = req.trackingObject;
+  const userId = req.decoded.subject;
+  db.addShipmentWeb(trackingdata, uuid.toLowerCase(), userId)
     .then(added => {
       res.status(201).json(added);
     })
@@ -27,7 +40,6 @@ router.get("/", authenticate, (req, res) => {
     });
 });
 
-
 router.get("/all", authenticate, (req, res) => {
   const userId = req.decoded.subject;
   db.getAllShipments(userId)
@@ -38,7 +50,6 @@ router.get("/all", authenticate, (req, res) => {
       res.status(code).json({ message });
     });
 });
-
 
 router.delete("/delete/:uuid", authenticate, (req, res) => {
   const userId = req.decoded.subject;
@@ -115,6 +126,18 @@ router.put("/edit/:uuid", authenticate, (req, res) => {
     .catch(({ code, message }) => {
       res.status(code).json({ message });
     });
+});
+
+router.get("/:uuid", authenticate, trackOne, (req, res) => {
+  if (req.result) {
+    return res.status(200).json(req.result);
+  } else return res.status(500).json({ message: "internal server error" });
+});
+
+router.post("/test", authenticate, testingShipit, (req, res) => {
+  if (req.trackingObject) {
+    return res.status(200).json(req.trackingObject);
+  } else return res.status(500).json({ message: "internal server error" });
 });
 
 module.exports = router;
